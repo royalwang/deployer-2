@@ -65,7 +65,7 @@ if (!in_array($ip_remote, $ip_whitelist) ) {
 //
 $json = json_decode($_POST['payload']);
 
-if($json == null || $json == false){
+if($json === NULL ||$json === false){
 	die(
 		error_log("Error! No valid JSON array in payload $remote_ip", 0)
 	);
@@ -85,7 +85,7 @@ if($detailed_log){
 //
 if($json->{'ref'} != $deploy_branch){
 	die(
-		error_log("Deploy branch not updated. Doing nothing.", 0);
+		error_log("Deploy branch not updated. Doing nothing.", 0)
 	);
 }
 
