@@ -2,18 +2,29 @@
 /**
  * Deployer
  * Copyright 2011, Xavier Decuyper
- * 
- * Deploying web applications through git and github
  *
+ * Deploying web applications through git and github
  */
 ini_set("log_errors", "On");
 ini_set("error_log", "log.txt");
 
-// Enable this is you want detailed logs
-$detail_log = false;
+//
+// ----------------------------------------------------------------------------
+//  Configuration
+// ----------------------------------------------------------------------------
+//
 
-// The branch you wish to deploy automaticly
-$branch = "refs/heads/deploy";
+// IP whitelist: list of IP's that are allowed to trigger deployer
+// Default: 207.97.227.253 (IP of Github)
+$ip_whitelist = array("207.97.227.253");
+
+// Branch to deploy
+// Default: refs/heads/deploy
+$deploy_branch = "refs/heads/deploy";
+
+// Log the JSON array, passed on by Github
+// Default: false (it created really long log files)
+$detailed_log = false;
 
 // The project URL with /commit/ added to it
 $project_url = "https://github.com/Savjee/Project-ABC/commit/";
@@ -21,19 +32,61 @@ $project_url = "https://github.com/Savjee/Project-ABC/commit/";
 // The project name. Should be the same as <username-projectname>
 $project_name = "Savjee-Project-ABC-";
 
-// Get the POST parameters from Github
-$json = json_decode($_POST['payload']);
 
-// POST parameters loggen?
-if($detail_log){
-	error_log("--> GOT THIS POST MESSAGE FROM GITHUB: " . $_POST['payload'], 0);
-}else{
-	error_log("--> GOT A POST MESSAGE FROM GITHUB.", 0);
+
+//
+// ----------------------------------------------------------------------------
+//  First running security checks
+// ----------------------------------------------------------------------------
+//
+
+//
+// Check if the request type is POST (Github only uses POST)
+//
+if($_SERVER['REQUEST_METHOD'] != "POST"){
+	die(error_log("Error! Didn't get a POST request.", 0));
 }
 
-if($json->{'ref'} != $branch){
-	error_log("--> Deploy branch was not updated. Not downloading..", 0);
-	die("Nothing was updated");
+
+//
+// Check if the IP adres is in whitelist
+//
+$ip_remote = $_SERVER['REMOTE_ADDR'];
+
+if (!in_array($ip_remote, $ip_whitelist) ) {
+	die(
+		error_log("Error! Unrecognized IP address: $remote_ip", 0)
+	);
+}
+
+
+//
+// Get the posted JSON & check if valid
+//
+$json = json_decode($_POST['payload']);
+
+if($json == null || $json == false){
+	die(
+		error_log("Error! No valid JSON array in payload $remote_ip", 0)
+	);
+}
+
+//
+// POST parameters loggen?
+//
+if($detailed_log){
+	error_log("Got this JSON array from Github: " . $_POST['payload'], 0);
+}else{
+	error_log("Got POST message from Github.", 0);
+}
+
+//
+// Was the deploy branch updated?
+//
+if($json->{'ref'} != $deploy_branch){
+	die(
+		error_log("Deploy branch not updated. Doing nothing.", 0);
+	);
 }
 
 // Get the commit's hash
@@ -87,31 +140,31 @@ error_log("------------------------------------", 0);
 // source: http://php.net/manual/en/ref.zip.php
 //
 function unzip($file){
-    $zip = zip_open($file); 
-    if(is_resource($zip)){ 
-        $tree = ""; 
-        while(($zip_entry = zip_read($zip)) !== false){ 
-            echo "Unpacking ".zip_entry_name($zip_entry)."\n"; 
-            if(strpos(zip_entry_name($zip_entry), DIRECTORY_SEPARATOR) !== false){ 
-                $last = strrpos(zip_entry_name($zip_entry), DIRECTORY_SEPARATOR); 
-                $dir = substr(zip_entry_name($zip_entry), 0, $last); 
-                $file = substr(zip_entry_name($zip_entry), strrpos(zip_entry_name($zip_entry), DIRECTORY_SEPARATOR)+1); 
-                if(!is_dir($dir)){ 
-                    @mkdir($dir, 0755, true) or die("Unable to create $dir\n"); 
-                } 
-                if(strlen(trim($file)) > 0){ 
-                    $return = @file_put_contents($dir."/".$file, zip_entry_read($zip_entry, zip_entry_filesize($zip_entry))); 
-                    if($return === false){ 
-                        die("Unable to write file $dir/$file\n"); 
-                    } 
-                } 
-            }else{ 
-                file_put_contents($file, zip_entry_read($zip_entry, zip_entry_filesize($zip_entry)) ); 
-            } 
-        } 
-    }else{ 
-        echo "Unable to open zip file\n"; 
-    } 
+    $zip = zip_open($file);
+    if(is_resource($zip)){
+        $tree = "";
+        while(($zip_entry = zip_read($zip)) !== false){
+            echo "Unpacking ".zip_entry_name($zip_entry)."\n";
+            if(strpos(zip_entry_name($zip_entry), DIRECTORY_SEPARATOR) !== false){
+                $last = strrpos(zip_entry_name($zip_entry), DIRECTORY_SEPARATOR);
+                $dir = substr(zip_entry_name($zip_entry), 0, $last);
+                $file = substr(zip_entry_name($zip_entry), strrpos(zip_entry_name($zip_entry), DIRECTORY_SEPARATOR)+1);
+                if(!is_dir($dir)){
+                    @mkdir($dir, 0755, true) or die("Unable to create $dir\n");
+                }
+                if(strlen(trim($file)) > 0){
+                    $return = @file_put_contents($dir."/".$file, zip_entry_read($zip_entry, zip_entry_filesize($zip_entry)));
+                    if($return === false){
+                        die("Unable to write file $dir/$file\n");
+                    }
+                }
+            }else{
+                file_put_contents($file, zip_entry_read($zip_entry, zip_entry_filesize($zip_entry)) );
+            }
+        }
+    }else{
+        echo "Unable to open zip file\n";
+    }
 }
 
 
@@ -119,20 +172,20 @@ function unzip($file){
 // Function to copy a directory's contents to another
 // source: http://php.net/manual/en/function.copy.php
 //
-function recurse_copy($src,$dst) { 
-    $dir = opendir($src); 
-    @mkdir($dst); 
-    while(false !== ( $file = readdir($dir)) ) { 
-        if (( $file != '.' ) && ( $file != '..' )) { 
-            if ( is_dir($src . '/' . $file) ) { 
-                recurse_copy($src . '/' . $file,$dst . '/' . $file); 
-            } 
-            else { 
-                copy($src . '/' . $file,$dst . '/' . $file); 
-            } 
-        } 
-    } 
-    closedir($dir); 
+function recurse_copy($src,$dst) {
+    $dir = opendir($src);
+    @mkdir($dst);
+    while(false !== ( $file = readdir($dir)) ) {
+        if (( $file != '.' ) && ( $file != '..' )) {
+            if ( is_dir($src . '/' . $file) ) {
+                recurse_copy($src . '/' . $file,$dst . '/' . $file);
+            }
+            else {
+                copy($src . '/' . $file,$dst . '/' . $file);
+            }
+        }
+    }
+    closedir($dir);
 }
 
 
