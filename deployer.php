@@ -27,7 +27,7 @@ $deploy_branch = "refs/heads/deploy";
 $detailed_log = false;
 
 // The project URL with /commit/ added to it
-$project_url = "https://github.com/Savjee/Project-ABC/commit/";
+//$project_url = "https://github.com/Savjee/Project-ABC/commit/";
 
 // The project name. Should be the same as <username-projectname>
 $project_name = "Savjee-Project-ABC-";
@@ -39,20 +39,19 @@ $project_name = "Savjee-Project-ABC-";
 //  First running security checks
 // ----------------------------------------------------------------------------
 //
+$ip_remote = $_SERVER['REMOTE_ADDR'];
 
 //
 // Check if the request type is POST (Github only uses POST)
 //
 if($_SERVER['REQUEST_METHOD'] != "POST"){
-	die(error_log("Error! Didn't get a POST request.", 0));
+	die(error_log("Error! Did not get a POST request. (IP: $ip_remote)", 0));
 }
 
 
 //
 // Check if the IP adres is in whitelist
 //
-$ip_remote = $_SERVER['REMOTE_ADDR'];
-
 if (!in_array($ip_remote, $ip_whitelist) ) {
 	die(
 		error_log("Error! Unrecognized IP address: $remote_ip", 0)
@@ -91,48 +90,48 @@ if($json->{'ref'} != $deploy_branch){
 
 // Get the commit's hash
 $commit_hash = substr($json->{'after'}, 0, 7);
-error_log("--> This is the commit hash: ". $commit_hash, 0);
+error_log("Commit hash: ". $commit_hash, 0);
 
 // Place the current commit hash in the currentBranch file
 // this can be accessed by the application to show on which version it runs
-error_log("--> Placing the current hash in the currentBranch file.", 0);
+error_log("Placing the current hash in the currentBranch file.", 0);
 file_put_contents('currentBranch', $commit_hash);
 
 //
 // Wait 5 seconds. Github is processing the commit and zipball
 //
-error_log("--> Waiting 5 seconds", 0);
+error_log("Waiting 5 seconds before downloading zipball", 0);
 usleep(5000000);
 
 //
 // Download the latest code from from Github
 //
-error_log("--> Downloading latest code from Github....", 0);
+error_log("Downloading latest code from Github....", 0);
 file_put_contents('deploy_commit.zip', file_get_contents('https://github.com/Savjee/Project-ABC/zipball/deploy'));
-error_log("--> Download complete!", 0);
+error_log("Download complete!", 0);
 
 //
 // Unzip the downloaded code
 //
-error_log("--> Unpacking directory: ". $project_name. $commit_hash, 0);
+error_log("Unpacking directory: ". $project_name. $commit_hash, 0);
 unzip("deploy_commit.zip");
-error_log("--> Unpack finished.", 0);
+error_log("Unpack finished.", 0);
 
 //
 // Move the new code to live version
 //
-error_log("--> Deploying...", 0);
-recurse_copy($project_name. $commit_hash, "../");
+error_log("Deploying...", 0);
+copyr($project_name. $commit_hash, "../");
 error_log("--> Deploy finished!", 0);
 
 //
 // Removing unpack data
 //
-error_log("--> Removing the unpack data...", 0);
+error_log("Removing the unpack data...", 0);
 rrmdir($project_name.$commit_hash);
-error_log("--> Unpack data removed!", 0);
+error_log("Unpack data removed!", 0);
 
-error_log("--> Done. Everything should be fine!", 0);
+error_log("Done. Everything should be fine!", 0);
 error_log("------------------------------------", 0);
 
 //
@@ -163,29 +162,8 @@ function unzip($file){
             }
         }
     }else{
-        echo "Unable to open zip file\n";
+        die(error_log("Error! Unable to open zip file. Corrupt?", 0));
     }
-}
-
-
-//
-// Function to copy a directory's contents to another
-// source: http://php.net/manual/en/function.copy.php
-//
-function recurse_copy($src,$dst) {
-    $dir = opendir($src);
-    @mkdir($dst);
-    while(false !== ( $file = readdir($dir)) ) {
-        if (( $file != '.' ) && ( $file != '..' )) {
-            if ( is_dir($src . '/' . $file) ) {
-                recurse_copy($src . '/' . $file,$dst . '/' . $file);
-            }
-            else {
-                copy($src . '/' . $file,$dst . '/' . $file);
-            }
-        }
-    }
-    closedir($dir);
 }
 
 
@@ -204,6 +182,67 @@ function rrmdir($dir) {
     reset($objects);
     rmdir($dir);
   }
+}
+
+
+/**
+ * Copy a file, or recursively copy a folder and its contents
+ *
+ * @author      Aidan Lister <aidan@php.net>
+ * @link        http://aidanlister.com/2004/04/recursively-copying-directories-in-php/
+ * @param       string   $source    Source path
+ * @param       string   $dest      Destination path
+ * @return      bool     Returns TRUE on success, FALSE on failure
+ */
+function copyr($source, $dest){
+
+    // Simple copy for a file
+    if (is_file($source)) {
+		if( end(explode('.', $source)) == "css"){
+			error_log("Found a CSS file. Compressing...", 0);
+			file_put_contents($source, compress_css(file_get_contents($source)) );
+			error_log("CSS Compressing done.", 0);
+
+		}
+        return copy($source, $dest);
+    }
+
+    // Make destination directory
+    if (!is_dir($dest)) {
+        mkdir($dest);
+    }
+
+    // Loop through the folder
+    $dir = dir($source);
+    while (false !== $entry = $dir->read()) {
+        // Skip pointers
+        if ($entry == '.' || $entry == '..') {
+            continue;
+        }
+
+        // Deep copy directories
+        copyr("$source/$entry", "$dest/$entry");
+    }
+
+    // Clean up
+    $dir->close();
+    return true;
+}
+
+/**
+ * Compresses a CSS file. (Basic compression only)
+ *
+ * @author		Xavier Decuyper <xavier.decuyper@gmail.com>
+ * @param		string	$buffer		The input css
+ * @return 		string	Compressed CSS
+ *
+ */
+function compress_css($buffer){
+    /* remove comments */
+    $buffer=preg_replace('!/\*[^*]*\*+([^/][^*]*\*+)*/!','',$buffer);
+    /* remove tabs, spaces, newlines, etc. */
+    $buffer=str_replace(array("\r\n","\r","\n","\t",'  ','    ','    '),'',$buffer);
+    return $buffer;
 }
 
 ?>
