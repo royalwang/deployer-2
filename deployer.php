@@ -8,6 +8,7 @@
 ini_set("log_errors", "On");
 ini_set("error_log", "log.txt");
 include("jsmin.php");
+include("cssmin.php");
 
 //
 // ----------------------------------------------------------------------------
@@ -203,7 +204,7 @@ function copyr($source, $dest){
 		if( end(explode('.', $source)) == "css"){
 
 			error_log("Found a CSS file. Compressing...", 0);
-			file_put_contents($source, compress_css(file_get_contents($source)) );
+			file_put_contents($source, CssMin::minify(file_get_contents($source)) );
 			error_log("CSS Compressing done.", 0);
 
 		}
@@ -236,22 +237,6 @@ function copyr($source, $dest){
     // Clean up
     $dir->close();
     return true;
-}
-
-/**
- * Compresses a CSS file. (Basic compression only)
- *
- * @author		Xavier Decuyper <xavier.decuyper@gmail.com>
- * @param		string	$buffer		The input css
- * @return 		string	Compressed CSS
- *
- */
-function compress_css($buffer){
-    /* remove comments */
-    $buffer=preg_replace('!/\*[^*]*\*+([^/][^*]*\*+)*/!','',$buffer);
-    /* remove tabs, spaces, newlines, etc. */
-    $buffer=str_replace(array("\r\n","\r","\n","\t",'  ','    ','    '),'',$buffer);
-    return $buffer;
 }
 
 ?>
