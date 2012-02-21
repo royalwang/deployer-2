@@ -7,6 +7,7 @@
  */
 ini_set("log_errors", "On");
 ini_set("error_log", "log.txt");
+include("jsmin.php");
 
 //
 // ----------------------------------------------------------------------------
@@ -199,10 +200,17 @@ function copyr($source, $dest){
     // Simple copy for a file
     if (is_file($source)) {
 		if( end(explode('.', $source)) == "css"){
+
 			error_log("Found a CSS file. Compressing...", 0);
 			file_put_contents($source, compress_css(file_get_contents($source)) );
 			error_log("CSS Compressing done.", 0);
 
+		}
+
+		if( end(explode('.', $source)) == "js"){
+			error_log("Found a Javascript file. Compressing...", 0);
+			file_put_contents($source, JSMin::minify(file_get_contents($source)) );
+			error_log("Javascript Compressing done.", 0);
 		}
         return copy($source, $dest);
     }
