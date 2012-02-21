@@ -16,8 +16,9 @@ include("jsmin.php");
 //
 
 // IP whitelist: list of IP's that are allowed to trigger deployer
-// Default: 207.97.227.253 (IP of Github)
-$ip_whitelist = array("207.97.227.253");
+// Default: 207.97.227.253, 50.57.128.197 (IPs of Github)
+$ip_whitelist = array("207.97.227.253", "50.57.128.197");
+
 
 // Branch to deploy
 // Default: refs/heads/deploy
