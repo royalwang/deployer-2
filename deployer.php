@@ -18,7 +18,7 @@ include("cssmin.php");
 
 // IP whitelist: list of IP's that are allowed to trigger deployer
 // Default: 207.97.227.253, 50.57.128.197 (IPs of Github)
-$ip_whitelist = array("207.97.227.253", "50.57.128.197");
+$ip_whitelist = array("207.97.227.253", "50.57.128.197", '108.171.174.178');
 
 
 // Branch to deploy
